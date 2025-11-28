@@ -1,0 +1,12 @@
+{
+  "Version": 1,
+  "Hash": "iW+iNQzERZtrAm0d2qZUplWr93Sdnf+t2uJxImjArk4=",
+  "Source": "AspNetCoreJwt",
+  "BasePath": "_content/AspNetCoreJwt",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": [],
+  "Endpoints": []
+}

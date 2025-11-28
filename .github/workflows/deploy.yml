@@ -1,0 +1,58 @@
+name: Deploy to GoDaddy
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ---------- Front‑end ----------
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install frontend dependencies
+        working-directory: myhomefurniture_repo/frontend
+        run: npm ci
+
+      - name: Build frontend (static export)
+        working-directory: myhomefurniture_repo/frontend
+        run: |
+          npm run build
+          npm run export   # creates ./out with static files
+
+      # ---------- Backend ----------
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish .NET backend
+        working-directory: AspNetCoreJwt
+        run: dotnet publish -c Release -o ../publish
+
+      # ---------- Package ----------
+      - name: Create deployment package
+        run: |
+          mkdir deploy
+          cp -r myhomefurniture_repo/frontend/out deploy/frontend
+          cp -r publish deploy/backend
+          cd deploy
+          zip -r ../myhomefurniture.zip .
+
+      # ---------- Deploy via FTP ----------
+      - name: Deploy to GoDaddy FTP
+        uses: SamKirkland/FTP-Deploy-Action@4.3.0
+        with:
+          server: ${{ secrets.GODADDY_FTP_HOST }}   # e.g., ftp.yourdomain.com
+          username: ${{ secrets.GODADDY_USERNAME }}
+          password: ${{ secrets.GODADDY_PASSWORD }}
+          local-dir: myhomefurniture.zip
+          remote-dir: /   # root of your domain (or /public_html)
