@@ -1,0 +1,153 @@
+using AspNetCoreJwt.Dtos;
+using AspNetCoreJwt.Models;
+using AspNetCoreJwt.Services;
+using AspNetCoreJwt.Data;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using MongoDB.Driver;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+
+namespace AspNetCoreJwt.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+public class AuthController : ControllerBase
+{
+    private readonly ApplicationDbContext _context;
+    private readonly IConfiguration _config;
+
+    public AuthController(ApplicationDbContext context, IConfiguration config)
+    {
+        _context = context;
+        _config = config;
+    }
+
+    // POST /auth/register
+    [HttpPost("register")]
+    public async Task<IActionResult> Register([FromBody] RegisterDto dto)
+    {
+        try
+        {
+            // Check if username already exists
+            var existingUser = await _context.Users
+                .FirstOrDefaultAsync(u => u.Username == dto.Username);
+
+            if (existingUser != null)
+                return Conflict(new { message = "Username already exists" });
+
+            // Create new user
+            var user = new User
+            {
+                Id = Guid.NewGuid().ToString(),
+                Username = dto.Username,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+            
+            return Ok(new { message = "User registered successfully" });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error during registration: {ex}");
+            return StatusCode(500, new { message = "Internal Server Error", error = ex.Message });
+        }
+    }
+
+    // POST /auth/login
+    [HttpPost("login")]
+    public async Task<IActionResult> Login([FromBody] LoginDto dto)
+    {
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => u.Username == dto.Username);
+
+        if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
+            return Unauthorized(new { message = "Invalid credentials" });
+
+        var token = GenerateJwtToken(user);
+        return Ok(new { token });
+    }
+
+    // GET /auth/profile
+    [HttpGet("profile")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public async Task<IActionResult> GetProfile()
+    {
+        var userId = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null) return NotFound();
+
+        return Ok(new
+        {
+            user.Username,
+            user.FirstName,
+            user.LastName,
+            user.Email,
+            user.DateOfBirth,
+            user.Address
+        });
+    }
+
+    // PUT /auth/profile
+    [HttpPut("profile")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto dto)
+    {
+        try
+        {
+            var userId = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return NotFound();
+
+            user.FirstName = dto.FirstName;
+            user.LastName = dto.LastName;
+            user.Email = dto.Email;
+            user.DateOfBirth = dto.DateOfBirth;
+            user.Address = dto.Address;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Profile updated successfully" });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating profile: {ex}");
+            return StatusCode(500, new { message = "Internal Server Error", error = ex.Message });
+        }
+    }
+
+    private string GenerateJwtToken(User user)
+    {
+        var jwtKey = _config["Jwt:Key"];
+        if (string.IsNullOrEmpty(jwtKey))
+            throw new InvalidOperationException("JWT Key is not configured");
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+
+        var claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id ?? ""),
+            new Claim(JwtRegisteredClaimNames.UniqueName, user.Username),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+        };
+
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var token = new JwtSecurityToken(
+            issuer: "MyHomeFurniture",
+            audience: "MyHomeFurnitureClients",
+            claims: claims,
+            expires: DateTime.UtcNow.AddHours(1),
+            signingCredentials: creds);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+}
