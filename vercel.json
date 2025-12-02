@@ -1,0 +1,10 @@
+{
+    "buildCommand": "cd myhomefurniture_repo/frontend && npm run build",
+    "outputDirectory": "myhomefurniture_repo/frontend/.next",
+    "devCommand": "cd myhomefurniture_repo/frontend && npm run dev",
+    "installCommand": "cd myhomefurniture_repo/frontend && npm install",
+    "framework": "nextjs",
+    "env": {
+        "NEXT_PUBLIC_API_URL": "@production_api_url"
+    }
+}

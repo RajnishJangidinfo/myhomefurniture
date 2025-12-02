@@ -18,14 +18,18 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // Register MongoDB service (Removed)
 // builder.Services.AddSingleton<MongoDBService>();
 
-// Configure CORS to allow Next.js frontend
+// Configure CORS to allow frontend (localhost + production)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
+        var allowedOrigins = builder.Configuration["AllowedOrigins"]?.Split(',') 
+            ?? new[] { "http://localhost:3000" };
+        
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
 
