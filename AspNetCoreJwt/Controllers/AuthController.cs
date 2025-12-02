@@ -18,11 +18,13 @@ public class AuthController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly IConfiguration _configuration;
+    private readonly EmailService _emailService;
 
-    public AuthController(ApplicationDbContext context, IConfiguration config)
+    public AuthController(ApplicationDbContext context, IConfiguration config, EmailService emailService)
     {
         _context = context;
         _configuration = config;
+        _emailService = emailService;
     }
 
     // POST /auth/register
@@ -180,7 +182,7 @@ public class AuthController : ControllerBase
         if (user == null)
         {
             // Don't reveal that the user doesn't exist
-            return Ok(new { message = "If the email exists, a reset token has been generated." });
+            return Ok(new { message = "If the email exists, a reset link has been sent to your email address." });
         }
 
         // Generate a reset token (GUID)
@@ -189,13 +191,37 @@ public class AuthController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        // In production, send this token via email
-        // For now, return it in the response
-        return Ok(new { 
-            message = "Reset token generated successfully", 
-            token = user.ResetToken,
-            expiresAt = user.ResetTokenExpiry 
-        });
+        // Send email with reset link
+        try
+        {
+            var frontendUrl = _configuration["FrontendUrl"] ?? "http://localhost:3000";
+            var resetUrl = $"{frontendUrl}/reset-password?token={user.ResetToken}";
+            
+            await _emailService.SendPasswordResetEmailAsync(user.Email, user.ResetToken, resetUrl);
+            
+            return Ok(new { 
+                message = "Password reset link has been sent to your email address.",
+                // For development: also return token
+                token = user.ResetToken,
+                resetUrl = resetUrl
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to send email: {ex.Message}");
+            
+            // Even if email fails, return success message for security
+            // But for development, include the token
+            var frontendUrl = _configuration["FrontendUrl"] ?? "http://localhost:3000";
+            var resetUrl = $"{frontendUrl}/reset-password?token={user.ResetToken}";
+            
+            return Ok(new { 
+                message = "Reset token generated. Email sending is not configured - use the token below.",
+                token = user.ResetToken,
+                resetUrl = resetUrl,
+                note = "Configure SMTP settings in appsettings.json to enable email sending"
+            });
+        }
     }
 
     // POST: /api/auth/reset-password

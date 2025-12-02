@@ -15,6 +15,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite("Data Source=app.db"));
 
+// Register EmailService
+builder.Services.AddScoped<AspNetCoreJwt.Services.EmailService>();
+
 // Register MongoDB service (Removed)
 // builder.Services.AddSingleton<MongoDBService>();
 

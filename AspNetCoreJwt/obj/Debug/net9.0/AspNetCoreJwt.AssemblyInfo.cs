@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AspNetCoreJwt")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2d1f859799653122ea62585742059643018cfb6c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+790442b040ab68fab1b76e39be624c95de03e4ae")]
 [assembly: System.Reflection.AssemblyProductAttribute("AspNetCoreJwt")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AspNetCoreJwt")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
