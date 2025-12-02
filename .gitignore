@@ -1,0 +1,18 @@
+# ASP.NET Core
+AspNetCoreJwt/bin/
+AspNetCoreJwt/obj/
+AspNetCoreJwt/appsettings.json
+AspNetCoreJwt/app.db
+AspNetCoreJwt/app.db-shm
+AspNetCoreJwt/app.db-wal
+
+# Next.js
+myhomefurniture_repo/frontend/.next/
+myhomefurniture_repo/frontend/node_modules/
+myhomefurniture_repo/frontend/.env.local
+myhomefurniture_repo/frontend/.env.production
+
+# General
+.DS_Store
+.vscode/
+*.log
