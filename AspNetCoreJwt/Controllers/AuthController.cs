@@ -17,12 +17,12 @@ namespace AspNetCoreJwt.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
-    private readonly IConfiguration _config;
+    private readonly IConfiguration _configuration;
 
     public AuthController(ApplicationDbContext context, IConfiguration config)
     {
         _context = context;
-        _config = config;
+        _configuration = config;
     }
 
     // POST /auth/register
@@ -69,7 +69,7 @@ public class AuthController : ControllerBase
         if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
             return Unauthorized(new { message = "Invalid credentials" });
 
-        var token = GenerateJwtToken(user);
+        var token = GenerateToken(user);
         return Ok(new { token });
     }
 
@@ -172,21 +172,69 @@ public class AuthController : ControllerBase
         return Ok(new { message = "User deleted successfully" });
     }
 
-    private string GenerateJwtToken(User user)
+    // POST: /api/auth/forgot-password
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ResetPasswordRequestDto dto)
     {
-        var jwtKey = _config["Jwt:Key"];
-        if (string.IsNullOrEmpty(jwtKey))
-            throw new InvalidOperationException("JWT Key is not configured");
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
+        if (user == null)
+        {
+            // Don't reveal that the user doesn't exist
+            return Ok(new { message = "If the email exists, a reset token has been generated." });
+        }
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+        // Generate a reset token (GUID)
+        user.ResetToken = Guid.NewGuid().ToString();
+        user.ResetTokenExpiry = DateTime.UtcNow.AddHours(1); // Token valid for 1 hour
 
+        await _context.SaveChangesAsync();
+
+        // In production, send this token via email
+        // For now, return it in the response
+        return Ok(new { 
+            message = "Reset token generated successfully", 
+            token = user.ResetToken,
+            expiresAt = user.ResetTokenExpiry 
+        });
+    }
+
+    // POST: /api/auth/reset-password
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => 
+            u.ResetToken == dto.Token && 
+            u.ResetTokenExpiry > DateTime.UtcNow);
+
+        if (user == null)
+        {
+            return BadRequest(new { message = "Invalid or expired reset token" });
+        }
+
+        // Hash the new password
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+
+        // Clear the reset token
+        user.ResetToken = null;
+        user.ResetTokenExpiry = null;
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Password has been reset successfully" });
+    }
+
+    private string GenerateToken(User user)
+    {
         var claims = new[]
         {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id ?? ""),
+            new Claim(ClaimTypes.Name, user.Username),
+            new Claim(ClaimTypes.NameIdentifier, user.Id!),
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id!),
             new Claim(JwtRegisteredClaimNames.UniqueName, user.Username),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"] ?? "default_secret_key_at_least_32_characters_long"));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var token = new JwtSecurityToken(
             issuer: "MyHomeFurniture",

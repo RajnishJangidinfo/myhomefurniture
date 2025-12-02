@@ -21,6 +21,12 @@ public class User
     public DateTime? DateOfBirth { get; set; }
     public string Address { get; set; } = string.Empty;
 
+    [BsonElement("resetToken")]
+    public string? ResetToken { get; set; }
+
+    [BsonElement("resetTokenExpiry")]
+    public DateTime? ResetTokenExpiry { get; set; }
+
     [BsonElement("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
