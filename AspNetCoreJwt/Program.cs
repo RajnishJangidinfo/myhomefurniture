@@ -84,6 +84,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseStaticFiles(); // Enable static files for uploads
+
 // Enable CORS
 app.UseCors("AllowFrontend");
 

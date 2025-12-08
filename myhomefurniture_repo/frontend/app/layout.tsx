@@ -19,14 +19,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html
+      lang="en"
+      suppressHydrationWarning={true}
+      className={`${playfair.variable} ${openSans.variable}`}
+    >
       <body
-        className={`${playfair.variable} ${openSans.variable} antialiased font-sans flex flex-col min-h-screen`}
+        suppressHydrationWarning={true}
+        className="antialiased font-sans flex flex-col min-h-screen"
       >
         <Navbar />
-        <main className="flex-grow">
-          {children}
-        </main>
+        <main className="flex-grow">{children}</main>
         <Footer />
       </body>
     </html>
